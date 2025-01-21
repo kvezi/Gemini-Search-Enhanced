@@ -1,6 +1,7 @@
 import { Switch, Route, useLocation } from "wouter";
 import { Home } from "@/pages/Home";
 import { Search } from "@/pages/Search";
+import { History } from "@/pages/History";
 import { Card, CardContent } from "@/components/ui/card";
 import { AlertCircle } from "lucide-react";
 import { AnimatePresence } from "framer-motion";
@@ -13,6 +14,7 @@ function App() {
       <Switch location={location} key={location}>
         <Route path="/" component={Home} />
         <Route path="/search" component={Search} />
+        <Route path="/history" component={History} />
         <Route component={NotFound} />
       </Switch>
     </AnimatePresence>

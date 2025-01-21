@@ -36,94 +36,18 @@ export function Logo({ className, animate = false }: LogoProps) {
         } : undefined}
       />
       <defs>
-        <motion.linearGradient
+        <linearGradient
           id="paint0_linear_39_18"
+          x1="6.20579"
+          y1="43.7756"
+          x2="41.9987"
+          y2="38.2037"
           gradientUnits="userSpaceOnUse"
-          animate={!animate ? {
-            x1: ["-20", "30", "-20"],
-            y1: ["60", "0", "60"],
-            x2: ["70", "20", "70"],
-            y2: ["-10", "50", "-10"]
-          } : {
-            x1: "6.20579",
-            y1: "43.7756",
-            x2: "41.9987",
-            y2: "38.2037"
-          }}
-          transition={!animate ? {
-            duration: 6,
-            repeat: Infinity,
-            ease: "easeInOut"
-          } : undefined}
         >
-          {animate ? (
-            <>
-              <stop stopColor="#439DDF" />
-              <stop offset="0.524208" stopColor="#4F87ED" />
-              <stop offset="0.781452" stopColor="#9476C5" />
-              <stop offset="0.888252" stopColor="#BC688E" />
-              <stop offset="1" stopColor="#D6645D" />
-            </>
-          ) : (
-            <>
-              <motion.stop
-                animate={{
-                  stopColor: ["#439DDF", "#4F87ED", "#439DDF"],
-                  offset: ["0", "0.3", "0"]
-                }}
-                transition={{
-                  duration: 6,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-              <motion.stop
-                animate={{
-                  stopColor: ["#4F87ED", "#9476C5", "#4F87ED"],
-                  offset: ["0.4", "0.8", "0.4"]
-                }}
-                transition={{
-                  duration: 6,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-              <motion.stop
-                animate={{
-                  stopColor: ["#9476C5", "#BC688E", "#9476C5"],
-                  offset: ["0.65", "0.9", "0.65"]
-                }}
-                transition={{
-                  duration: 6,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-              <motion.stop
-                animate={{
-                  stopColor: ["#BC688E", "#D6645D", "#BC688E"],
-                  offset: ["0.8", "1", "0.8"]
-                }}
-                transition={{
-                  duration: 6,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-              <motion.stop
-                animate={{
-                  stopColor: ["#D6645D", "#439DDF", "#D6645D"]
-                }}
-                offset="1"
-                transition={{
-                  duration: 6,
-                  repeat: Infinity,
-                  ease: "easeInOut"
-                }}
-              />
-            </>
-          )}
-        </motion.linearGradient>
+          <stop offset="0" stopColor="#4F46E5" />
+          <stop offset="0.5" stopColor="#7C3AED" />
+          <stop offset="1" stopColor="#2563EB" />
+        </linearGradient>
       </defs>
     </motion.svg>
   );

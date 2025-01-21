@@ -1,15 +1,31 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation } from 'wouter';
-import { Search } from 'lucide-react';
+import { Search, History as HistoryIcon, Settings } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Logo } from '@/components/Logo';
+import { SettingsDialog } from '@/components/settings-dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Button } from '@/components/ui/button';
 
 export function Home() {
   const [query, setQuery] = useState('');
   const [, setLocation] = useLocation();
+  const [showApiKeyAlert, setShowApiKeyAlert] = useState(false);
+
+  useEffect(() => {
+    const apiKey = localStorage.getItem('gemini_api_key');
+    setShowApiKeyAlert(!apiKey);
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
+    const apiKey = localStorage.getItem('gemini_api_key');
+    
+    if (!apiKey) {
+      setShowApiKeyAlert(true);
+      return;
+    }
+    
     if (query.trim()) {
       setLocation(`/search?q=${encodeURIComponent(query.trim())}`);
     }
@@ -17,8 +33,32 @@ export function Home() {
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center bg-background">
-      <ThemeToggle />
+      <div className="absolute top-4 right-4">
+        <ThemeToggle />
+      </div>
+      
+      <div className="absolute top-4 left-4 flex items-center gap-2">
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setLocation('/history')}
+          className="hover:bg-accent"
+          title="History"
+        >
+          <HistoryIcon className="h-[1.2rem] w-[1.2rem]" />
+        </Button>
+        <SettingsDialog />
+      </div>
+      
       <div className="w-full max-w-3xl px-4 animate-fade-in">
+        {showApiKeyAlert && (
+          <Alert className="mb-4">
+            <AlertDescription>
+              Please set your Gemini API key in the settings before searching.
+            </AlertDescription>
+          </Alert>
+        )}
+        
         <div className="flex flex-col items-center mb-8">
           <Logo className="mb-6" />
           <h1 className="text-2xl lg:text-4xl font-bold text-center bg-clip-text text-transparent bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-200">

@@ -6,19 +6,20 @@ import {
   type GenerateContentResult,
 } from "@google/generative-ai";
 import { marked } from "marked";
-import { setupEnvironment } from "./env";
 
-const env = setupEnvironment();
-const genAI = new GoogleGenerativeAI(env.GOOGLE_API_KEY);
-const model = genAI.getGenerativeModel({
-  model: "gemini-2.0-flash-exp",
-  generationConfig: {
-    temperature: 0.9,
-    topP: 1,
-    topK: 1,
-    maxOutputTokens: 2048,
-  },
-});
+// Initialize Gemini AI for each request
+function getGeminiClient(apiKey: string) {
+  const genAI = new GoogleGenerativeAI(apiKey);
+  return genAI.getGenerativeModel({
+    model: "gemini-2.0-flash-exp",
+    generationConfig: {
+      temperature: 0.9,
+      topP: 1,
+      topK: 1,
+      maxOutputTokens: 2048,
+    },
+  });
+}
 
 // Store chat sessions in memory
 const chatSessions = new Map<string, ChatSession>();
@@ -105,6 +106,14 @@ export function registerRoutes(app: Express): Server {
   // Search endpoint - creates a new chat session
   app.get("/api/search", async (req, res) => {
     try {
+      const apiKey = req.headers['x-gemini-api-key'] as string;
+      
+      if (!apiKey) {
+        return res.status(401).json({ error: 'API key is required' });
+      }
+
+      const model = getGeminiClient(apiKey);
+
       const query = req.query.q as string;
 
       if (!query) {
@@ -200,6 +209,14 @@ export function registerRoutes(app: Express): Server {
   // Follow-up endpoint - continues existing chat session
   app.post("/api/follow-up", async (req, res) => {
     try {
+      const apiKey = req.headers['x-gemini-api-key'] as string;
+      
+      if (!apiKey) {
+        return res.status(401).json({ error: 'API key is required' });
+      }
+
+      const model = getGeminiClient(apiKey);
+
       const { sessionId, query } = req.body;
 
       if (!sessionId || !query) {

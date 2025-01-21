@@ -6,8 +6,12 @@ import { SearchResults } from '@/components/SearchResults';
 import { FollowUpInput } from '@/components/FollowUpInput';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { SourceList } from '@/components/SourceList';
+import { saveToHistory } from '@/lib/history';
+import { ThemeToggle } from '@/components/ThemeToggle';
+import { searchQuery, followUpQuery } from '@/lib/api';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 
 export function Search() {
   const [location, setLocation] = useLocation();
@@ -16,198 +20,130 @@ export function Search() {
   const [originalQuery, setOriginalQuery] = useState<string | null>(null);
   const [isFollowUp, setIsFollowUp] = useState(false);
   const [followUpQuery, setFollowUpQuery] = useState<string | null>(null);
+  const [apiError, setApiError] = useState<string | null>(null);
   
-  // Extract query from URL, handling both initial load and subsequent navigation
+  // Extract query from URL
   const getQueryFromUrl = () => {
     const searchParams = new URLSearchParams(window.location.search);
     return searchParams.get('q') || '';
   };
   
-  const [searchQuery, setSearchQuery] = useState(getQueryFromUrl);
-  const [refetchCounter, setRefetchCounter] = useState(0);
+  const [searchTerm, setSearchTerm] = useState(getQueryFromUrl);
+
+  // Reset error when search term changes
+  useEffect(() => {
+    setApiError(null);
+  }, [searchTerm]);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['search', searchQuery, refetchCounter],
+    queryKey: ['search', searchTerm],
     queryFn: async () => {
-      if (!searchQuery) return null;
-      const response = await fetch(`/api/search?q=${encodeURIComponent(searchQuery)}`);
-      if (!response.ok) throw new Error('Search failed');
-      const result = await response.json();
-      console.log('Search API Response:', JSON.stringify(result, null, 2));
-      if (result.sessionId) {
-        setSessionId(result.sessionId);
-        setCurrentResults(result);
-        if (!originalQuery) {
-          setOriginalQuery(searchQuery);
+      try {
+        if (!searchTerm) return null;
+        const result = await searchQuery(searchTerm);
+        if (result.sessionId) {
+          setSessionId(result.sessionId);
+          setCurrentResults(result);
+          if (!originalQuery) {
+            setOriginalQuery(searchTerm);
+          }
+          setIsFollowUp(false);
+          saveToHistory(searchTerm, result.text);
         }
-        setIsFollowUp(false);
+        return result;
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('API key')) {
+          setApiError('Please set your Gemini API key in the settings before searching.');
+        } else {
+          setApiError((err as Error).message || 'An error occurred while searching');
+        }
+        throw err;
       }
-      return result;
     },
-    enabled: !!searchQuery,
+    enabled: !!searchTerm,
+    retry: false,
   });
 
   // Follow-up mutation
   const followUpMutation = useMutation({
-    mutationFn: async (followUpQuery: string) => {
-      if (!sessionId) {
-        const response = await fetch(`/api/search?q=${encodeURIComponent(followUpQuery)}`);
-        if (!response.ok) throw new Error('Search failed');
-        const result = await response.json();
-        console.log('New Search API Response:', JSON.stringify(result, null, 2));
-        if (result.sessionId) {
-          setSessionId(result.sessionId);
-          setOriginalQuery(searchQuery);
-          setIsFollowUp(false);
-        }
+    mutationFn: async (query: string) => {
+      try {
+        if (!sessionId) throw new Error('No session ID');
+        const result = await followUpQuery(sessionId, query);
+        setCurrentResults(result);
+        saveToHistory(query, result.text);
         return result;
-      }
-
-      const response = await fetch('/api/follow-up', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          sessionId,
-          query: followUpQuery,
-        }),
-      });
-      
-      if (!response.ok) {
-        if (response.status === 404) {
-          const newResponse = await fetch(`/api/search?q=${encodeURIComponent(followUpQuery)}`);
-          if (!newResponse.ok) throw new Error('Search failed');
-          const result = await newResponse.json();
-          console.log('Fallback Search API Response:', JSON.stringify(result, null, 2));
-          if (result.sessionId) {
-            setSessionId(result.sessionId);
-            setOriginalQuery(searchQuery);
-            setIsFollowUp(false);
-          }
-          return result;
+      } catch (err) {
+        if (err instanceof Error && err.message.includes('API key')) {
+          setApiError('Please set your Gemini API key in the settings before searching.');
+        } else {
+          setApiError((err as Error).message || 'An error occurred with the follow-up');
         }
-        throw new Error('Follow-up failed');
+        throw err;
       }
-      
-      const result = await response.json();
-      console.log('Follow-up API Response:', JSON.stringify(result, null, 2));
-      return result;
-    },
-    onSuccess: (result) => {
-      setCurrentResults(result);
-      setIsFollowUp(true);
     },
   });
 
-  const handleSearch = async (newQuery: string) => {
-    if (newQuery === searchQuery) {
-      // If it's the same query, increment the refetch counter to trigger a new search
-      setRefetchCounter(c => c + 1);
-    } else {
-      setSessionId(null); // Clear session on new search
-      setOriginalQuery(null); // Clear original query
-      setIsFollowUp(false); // Reset follow-up state
-      setSearchQuery(newQuery);
-    }
-    // Update URL without triggering a page reload
-    const newUrl = `/search?q=${encodeURIComponent(newQuery)}`;
-    window.history.pushState({}, '', newUrl);
+  const handleSearch = (query: string) => {
+    setSearchTerm(query);
+    setApiError(null);
   };
 
-  const handleFollowUp = async (newFollowUpQuery: string) => {
-    setFollowUpQuery(newFollowUpQuery);
-    await followUpMutation.mutateAsync(newFollowUpQuery);
+  const handleFollowUp = (query: string) => {
+    setFollowUpQuery(query);
+    followUpMutation.mutate(query);
   };
 
-  // Automatically start search when component mounts or URL changes
-  useEffect(() => {
-    const query = getQueryFromUrl();
-    if (query && query !== searchQuery) {
-      setSessionId(null); // Clear session on URL change
-      setOriginalQuery(null); // Clear original query
-      setIsFollowUp(false); // Reset follow-up state
-      setSearchQuery(query);
-    }
-  }, [location]);
-
-  // Use currentResults if available, otherwise fall back to data from useQuery
   const displayResults = currentResults || data;
 
   return (
-    <motion.div
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      exit={{ opacity: 0 }}
-      transition={{ duration: 0.3 }}
-      className="min-h-screen bg-background"
-    >
-      <motion.div
-        initial={{ y: -20, opacity: 0 }}
-        animate={{ y: 0, opacity: 1 }}
-        transition={{ duration: 0.4 }}
-        className="max-w-6xl mx-auto p-4"
-      >
-        <motion.div 
-          className="flex items-center gap-4 mb-6"
-          initial={{ x: -20, opacity: 0 }}
-          animate={{ x: 0, opacity: 1 }}
-          transition={{ duration: 0.4, delay: 0.1 }}
-        >
+    <div className="min-h-screen bg-background">
+      <div className="container mx-auto px-4 py-4">
+        <div className="flex items-center justify-between mb-6">
           <Button
             variant="ghost"
             size="icon"
             onClick={() => setLocation('/')}
-            className="hidden sm:flex"
           >
-            <ArrowLeft className="h-4 w-4" />
+            <ArrowLeft className="h-5 w-5" />
           </Button>
+          <ThemeToggle />
+        </div>
 
-          <div className="w-full max-w-2xl">
-            <SearchInput
-              onSearch={handleSearch}
-              initialValue={searchQuery}
-              isLoading={isLoading}
-              autoFocus={false}
-              large={false}
-            />
-          </div>
-        </motion.div>
+        {apiError && (
+          <Alert variant="destructive" className="mb-4">
+            <AlertDescription>{apiError}</AlertDescription>
+          </Alert>
+        )}
 
-        <AnimatePresence mode="wait">
-          <motion.div
-            key={searchQuery}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.3 }}
-            className="flex flex-col items-stretch"
-          >
-            <SearchResults
-              query={isFollowUp ? (followUpQuery || '') : searchQuery}
-              results={displayResults}
-              isLoading={isLoading || followUpMutation.isPending}
-              error={error || followUpMutation.error || undefined}
-              isFollowUp={isFollowUp}
-              originalQuery={originalQuery || ''}
-            />
+        <div className="flex flex-col items-stretch">
+          <SearchInput
+            onSearch={handleSearch}
+            initialValue={searchTerm}
+            isLoading={isLoading}
+            autoFocus={false}
+            large={false}
+          />
 
-            {displayResults && !isLoading && !followUpMutation.isPending && (
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: 0.2 }}
-                className="mt-6 max-w-2xl"
-              >
-                <FollowUpInput
-                  onSubmit={handleFollowUp}
-                  isLoading={followUpMutation.isPending}
-                />
-              </motion.div>
-            )}
-          </motion.div>
-        </AnimatePresence>
-      </motion.div>
-    </motion.div>
+          <SearchResults
+            query={isFollowUp ? (followUpQuery || '') : searchTerm}
+            results={displayResults}
+            isLoading={isLoading || followUpMutation.isPending}
+            error={error || followUpMutation.error || undefined}
+            isFollowUp={isFollowUp}
+            originalQuery={originalQuery || ''}
+          />
+
+          {displayResults && !isLoading && !followUpMutation.isPending && (
+            <div className="mt-6 max-w-2xl">
+              <FollowUpInput
+                onSubmit={handleFollowUp}
+                isLoading={followUpMutation.isPending}
+              />
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
