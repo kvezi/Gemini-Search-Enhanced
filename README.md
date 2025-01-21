@@ -1,10 +1,13 @@
+# Gemini-Search-Enhanced
+A fork of the original [Gemini-Search](https://github.com/ammaarreshi/Gemini-Search) project 
+
+
 ## Acknowledgements
 This project is based on the [Gemini-Search](https://github.com/ammaarreshi/Gemini-Search) repository.  
 
 Created by [@ammaar](https://x.com/ammaar)
 
-# Gemini-Search-Enhanced
-A fork of the original [Gemini-Search](https://github.com/ammaarreshi/Gemini-Search) project 
+
 
 ## New Features
 - **Search History:** Automatically saves past search queries for easy reference.
